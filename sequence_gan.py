@@ -1,3 +1,4 @@
+# -*- coding: utf8 -*-
 import numpy as np
 import tensorflow as tf
 import random
@@ -15,7 +16,7 @@ EMB_DIM = 32 # embedding dimension
 HIDDEN_DIM = 32 # hidden state dimension of lstm cell
 SEQ_LENGTH = 20 # sequence length
 START_TOKEN = 0
-PRE_EPOCH_NUM = 120 # supervise (maximum likelihood estimation) epochs
+PRE_EPOCH_NUM = 10 # supervise (maximum likelihood estimation) epochs  # 原始值120
 SEED = 88
 BATCH_SIZE = 64
 
@@ -79,6 +80,8 @@ def pre_train_epoch(sess, trainable_model, data_loader):
 
 
 def main():
+
+    # 设定随机初始化种子
     random.seed(SEED)
     np.random.seed(SEED)
     assert START_TOKEN == 0
@@ -88,9 +91,9 @@ def main():
     vocab_size = 5000
     dis_data_loader = Dis_dataloader(BATCH_SIZE)
 
-    generator = Generator(vocab_size, BATCH_SIZE, EMB_DIM, HIDDEN_DIM, SEQ_LENGTH, START_TOKEN)
+    generator = Generator(vocab_size, BATCH_SIZE, EMB_DIM, HIDDEN_DIM, SEQ_LENGTH, START_TOKEN)   # 生成器模型
     target_params = cPickle.load(open('save/target_params.pkl'))
-    target_lstm = TARGET_LSTM(vocab_size, BATCH_SIZE, EMB_DIM, HIDDEN_DIM, SEQ_LENGTH, START_TOKEN, target_params) # The oracle model
+    target_lstm = TARGET_LSTM(vocab_size, BATCH_SIZE, EMB_DIM, HIDDEN_DIM, SEQ_LENGTH, START_TOKEN, target_params) # The oracle model   #
 
     discriminator = Discriminator(sequence_length=20, num_classes=2, vocab_size=vocab_size, embedding_size=dis_embedding_dim, 
                                 filter_sizes=dis_filter_sizes, num_filters=dis_num_filters, l2_reg_lambda=dis_l2_reg_lambda)
@@ -101,7 +104,7 @@ def main():
     sess.run(tf.global_variables_initializer())
 
     # First, use the oracle model to provide the positive examples, which are sampled from the oracle data distribution
-    generate_samples(sess, target_lstm, BATCH_SIZE, generated_num, positive_file)
+    generate_samples(sess, target_lstm, BATCH_SIZE, generated_num, positive_file)  # 利用target_lstm生成真实数据
     gen_data_loader.create_batches(positive_file)
 
     log = open('save/experiment-log.txt', 'w')
@@ -111,7 +114,7 @@ def main():
     for epoch in xrange(PRE_EPOCH_NUM):
         loss = pre_train_epoch(sess, generator, gen_data_loader)
         if epoch % 5 == 0:
-            generate_samples(sess, generator, BATCH_SIZE, generated_num, eval_file)
+            generate_samples(sess, generator, BATCH_SIZE, generated_num, eval_file)  # 利用generator生成评估数据
             likelihood_data_loader.create_batches(eval_file)
             test_loss = target_loss(sess, target_lstm, likelihood_data_loader)
             print 'pre-train epoch ', epoch, 'test_loss ', test_loss
@@ -120,7 +123,7 @@ def main():
 
     print 'Start pre-training discriminator...'
     # Train 3 epoch on the generated data and do this for 50 times
-    for _ in range(50):
+    for _ in range(5):  # 原始值50
         generate_samples(sess, generator, BATCH_SIZE, generated_num, negative_file)
         dis_data_loader.load_train_data(positive_file, negative_file)
         for _ in range(3):
